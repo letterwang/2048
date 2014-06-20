@@ -54,6 +54,36 @@ Grid.prototype.availableCells = function () {
   return cells;
 };
 
+// Calculate a hash of current tiles.
+Grid.prototype.getSeed = function () {
+  var seed = 0, histogram = {}, fizzbuzz = {};
+  fizzbuzz[9] = 2; fizzbuzz[10] = 1; fizzbuzz[25] = 6; fizzbuzz[27] = 5; fizzbuzz[30] = 4;
+  this.eachCell(function (x, y, tile) {
+    if (tile) {
+      histogram[tile.value]++;
+      if (tile.value > 0) {
+        histogram[tile.value&1]++;
+      } else {
+        var strHash = tile.value.charCodeAt()-"A".charCodeAt() + 1;
+        histogram[strHash]=histogram[strHash]?2:1;
+      }
+    }
+  });
+  for (var entry in histogram) {
+    if (entry>0) {
+      var time = entry|0;
+      while ((time&1)==0) {
+        time = time >> 1;
+      }
+      if ( time > 1 ){
+        var added = (time|0)+(entry|0);
+        seed|=(1<<fizzbuzz[added])*((histogram[entry]-1)*2+1);
+      }
+    }
+  }
+  return 255-seed;
+}
+
 // Call callback for every cell
 Grid.prototype.eachCell = function (callback) {
   for (var x = 0; x < this.size; x++) {

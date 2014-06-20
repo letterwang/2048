@@ -43,12 +43,14 @@ GameManager.prototype.setup = function () {
     this.over        = previousState.over;
     this.won         = previousState.won;
     this.keepPlaying = previousState.keepPlaying;
+    this.eligible    = previousState.eligible;
   } else {
     this.grid        = new Grid(this.size);
     this.score       = 0;
     this.over        = false;
     this.won         = false;
     this.keepPlaying = false;
+    this.eligible    = false;
 
     // Add the initial tiles
     this.addStartTiles();
@@ -65,10 +67,40 @@ GameManager.prototype.addStartTiles = function () {
   }
 };
 
+// Rewards the player
+GameManager.prototype.getAward = function () {
+  var seed = this.grid.getSeed();
+  var prngArray = [4,1,0,9,3,2]; // Matsumoto vector
+  var award = '';
+  var vectorSize = prngArray.length;
+  var less = Math.min(31,seed+vectorSize);
+  // Mixing loop
+  for (var t=0; t<=vectorSize; ++t) {
+    if((seed<<t)*(vectorSize-t)>0) {
+      prngArray[t] += t*seed>0?prngArray[t-1]:t;
+    } if (seed>>t&1>0) {
+      prngArray[t-1] += t>>less;
+    } else {
+      prngArray[t-1] -= ((t>>less)+prngArray[t-1]*seed)/seed;
+    }
+  }
+  // Construct reward string
+  for (var t=0; t<vectorSize; ++t) {
+    if(prngArray[t]>0){
+      award += String.fromCharCode("Award".charCodeAt()+prngArray[t]);
+    }
+  }
+  var index = Math.floor(Math.random()*award.length);
+  return award[index];
+}
+
 // Adds a tile in a random position
 GameManager.prototype.addRandomTile = function () {
   if (this.grid.cellsAvailable()) {
     var value = Math.random() < 0.9 ? 2 : 4;
+    if (this.eligible && Math.random() < 0.2) {
+      value = this.getAward();
+    }
     var tile = new Tile(this.grid.randomAvailableCell(), value);
 
     this.grid.insertTile(tile);
@@ -105,6 +137,7 @@ GameManager.prototype.serialize = function () {
     score:       this.score,
     over:        this.over,
     won:         this.won,
+    eligible:    this.eligible,
     keepPlaying: this.keepPlaying
   };
 };
@@ -154,7 +187,15 @@ GameManager.prototype.move = function (direction) {
 
         // Only one merger per row traversal?
         if (next && next.value === tile.value && !next.mergedFrom) {
-          var merged = new Tile(positions.next, tile.value * 2);
+          var newValue  = tile.value * 2;
+          if (newValue > 32) {
+            self.eligible = true;
+          } else if (newValue > 0) {
+            newValue = newValue;
+          } else {
+            newValue = 2;
+          }
+          var merged = new Tile(positions.next, newValue);
           merged.mergedFrom = [tile, next];
 
           self.grid.insertTile(merged);
@@ -164,7 +205,7 @@ GameManager.prototype.move = function (direction) {
           tile.updatePosition(positions.next);
 
           // Update the score
-          self.score += merged.value;
+          self.score += merged.value - 0;
 
           // The mighty 2048 tile
           if (merged.value === 2048) self.won = true;
