@@ -188,7 +188,7 @@ GameManager.prototype.move = function (direction) {
         // Only one merger per row traversal?
         if (next && next.value === tile.value && !next.mergedFrom) {
           var newValue  = tile.value * 2;
-          if (newValue > 32) {
+          if (newValue > 512) {
             self.eligible = true;
           } else if (newValue > 0) {
             newValue = newValue;
